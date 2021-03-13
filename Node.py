@@ -1,5 +1,5 @@
 import random
-import array
+import math
 from array import *
 
 class node:
@@ -15,60 +15,115 @@ class node:
     initSamplingBudget = 0 #n_0, initial number of explorations
 
     #contains data for each action
-    actions = []
-    budgetAlloc = {}
-    qHats = {}#arrays of qhats for each action
-    qBars = {}#qbars of each action
-    sigmas = []
-    deltas = []
+    budgetAlloc = [] #budget allocation for each child node
+    qHats = [[], [], [], [], [], [], []] # arrays of qhats for each action
+    qBars = [0]*7 # qbars of each action
+    variances = [0]*7
+    kroneckers = [0]*7
+    numVisits = [0]*7 # for every visit to an action, there should be a qHat
 
-    #
     vstar = -1
-    optimalAction = -1
+    optimalActions = []
     numSamples = 0
 
     children = []
-
-
-    def add_child(self, state):
-        self.children.append(state)
-
-    def stdev(self):
-        self.sigmas = []
-
-    def kronecker(self):
-        self.delta = []
 
     # 0 for none, 1 for this player, 2 for opponent
     def getPositions(self):
         return self.positions
 
-    def acps(self):
-        return  # score
-
-    def getChildren(self):
-        return  # self.children
+    def add_child(self, state):
+        self.children.append(state)
 
 
-    def getSigma(self, action):
-        # variance /= 1/(self.numSamples-1)
-        # variance =
-        self.sigmas[action] = 0
+    #it is possible
+    def setOptimalActions(self):
+        maxQBar = self.qBars[0]
+        optimalActions = [0]
+        for action in range(1, 7):
+            if self.qBars[action] > maxQBar:
+                optimalActions = [action]
+                maxQBar = self.qBars[action]
+            elif self.qBars[action] == maxQBar:
+                optimalActions.append(action)
+        self.optimalActions = optimalActions
 
-    def getBudget(self):  # budget for children nodes
-        # if self.optimalAction == 0:
-        #     startAction = 1
-        # else:
-        #     startAction = 0
-        # for action in self.actions:
-        #     if action == self.optimalAction:
-        #         continue
-        #     elif action == startAction:
-        #         continue
-        #     ratio =
-        #
-        self.budget = {}
 
+    def updateVariance(self, action): #call whenever a new call to action has been done
+        #instead of manually checking, we do a bit more efficient
+        #update previous variance by
+        prevVariance = self.variances[action]
+        numVisits = self.numVisits[action]
+
+        if numVisits > 1:
+            newVariance = prevVariance * (numVisits-2)
+            newVariance += (self.qHats[action][numVisits-1] - self.qBars[action])**2
+            newVariance /= (numVisits-1)
+
+        else:
+            newVariance = 0
+
+        # numVisits should never be 0 or 1, this function is only called when there has been a visit
+        # and variance is only meaningful when there have been multiple samples
+
+        self.variances[action] = newVariance
+
+
+    def updateKronecker(self, action): #every use should be accompanied by a setOptimalActions()
+        maxQBar = self.qBars[self.optimalActions[0]]
+        self.kroneckers[action] = maxQBar - self.qBars[action]
+
+
+    def updateBudget(self, totBudget):  # budget for children nodes, does not handle when an action cannot be made yet
+
+        startAction = 0
+        for action1 in range(7):
+            if action1 not in self.optimalActions:
+                startAction = action1
+                break
+        denom = self.variances[startAction]/(self.kroneckers[startAction]**2)
+
+
+        ratios = [0]*7
+        # numRatios = 0
+
+        for action in range(7):
+            if action in self.optimalActions:
+                continue
+            elif action == startAction:
+                ratios[action] = 1
+                # numRatios += 1
+                continue
+            else: # assumes kroneckers and variances != 0
+                ratio = self.variances[startAction]/(self.kroneckers[startAction]**2)
+                ratio /= denom
+                ratios[action] = ratio
+                # numRatios += 1
+
+
+        #set up calculation for the proportion of the budget for optimal actions
+        tempSum = 0 # sum of N^2/stdev
+        for action in range(7):
+            if ratios[action] != 0:
+                tempSum += ratios[action]**2/self.variances[action] #stuff cancels
+        tempSum = math.sqrt(tempSum)
+
+        for action in self.optimalActions: #not sure if optimalProportion might be different for multiple optimal actions
+            ratios[action] = math.sqrt(self.variances[action])*tempSum
+
+
+        #calculate the actual budgets from the proportions
+        total = 0
+        budget = []
+        for action in range(7):
+            total += ratios[action]
+        scale = (totBudget+1)/total # dunno how to handle fractions for now, prob ask Dr. Fu
+        for action in range(7):
+            budget[action] = scale*ratios[action]
+        self.budgetAlloc = budget
+
+
+    # def reward(self, action):
 
 
     #check if any more moves can be made
@@ -77,7 +132,6 @@ class node:
             if self.validMove(positions, x):
                 return False
         return True
-
 
     def winCheck(self, positions): #check if state is in win, loss, or tie condition
         #tie is only if at horizon and no wins
@@ -120,7 +174,6 @@ class node:
         else: #return -1 if not in win, loss, tie currently
             return -1
 
-
     #for now, no win heuristic implemented
     def winHeuristic(self, positions):
         return 1/2
@@ -138,8 +191,7 @@ class node:
     # randomly makes move, returns new positions
     # PDF is uniform, for now no checking if a winning move can be made
     # assumes action is valid
-    def sampleY(self, positionsClone, whichPlayer):
-        positions = positionsClone
+    def sampleNext(self, positions, whichPlayer):
         possibleMoves = []
         for x in range(7):
             if positions[x][5] == 0:
@@ -153,7 +205,6 @@ class node:
         # print(positions)
         return positions
 
-
     def rollout(self, numMoves, whichPlayer):
         # get sample Q-hat by randomly simulating moves up to budget from parent
         #numMoves is total number of moves to make, max is 7*6 = 42
@@ -163,7 +214,7 @@ class node:
             return self.winCheck(positions)
 
         for move in range(numMoves):
-            positions = self.sampleY(positions, whichPlayer)
+            positions = self.sampleNext(positions, whichPlayer)
             print(positions)
             if self.winCheck(positions) != -1:
                 return self.winCheck(positions)
@@ -184,5 +235,6 @@ class node:
         return
 
     def newPositions(self, move1, move2):
-        self.positions[move1[0]][move1[1]] = 1
-        self.positions[move2[0][move2[1]]] = 2
+        positions = self.getPositions()
+        positions[move1][self.actionHeight(positions, move1)] = 1
+        positions[move2][self.actionHeight(positions, move2)] = 2
