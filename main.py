@@ -11,12 +11,16 @@ for x in range(5):
     print(root.getOptimalAction())
 """
 
+initProbeBudget = int(input("Specify the initial probing budget n_0 (a good default would be 10): "))
+depth = int(input("Specify the depth of the branching (a good default would be 1): "))
+numRewardSamples = int(input("Specify the number of random rollouts performed per reward sample (a good default would be 20): "))
+budget = int(input("Specify the budget per move (a good default would be 20): "))
 game = state()
 
 while game.winCheck(game.positions) == -1:
-    root = state(positions = game.getPositions(), initProbeBudget=10)
-    for x in range(20):
-        root.OCBATree(1, 20)
+    root = state(positions = game.getPositions(), initProbeBudget=initProbeBudget)
+    for x in range(budget):
+        root.OCBATree(depth, numRewardSamples)
     root.updateOptimalActions()
     print("My move: ", end='')
     optAction = root.getOptimalAction()
