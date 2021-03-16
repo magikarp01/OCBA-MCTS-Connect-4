@@ -22,6 +22,8 @@ while game.winCheck(game.positions) == -1:
     for x in range(budget):
         root.OCBATree(depth, numRewardSamples)
     root.updateOptimalActions()
+    print("Q-Bars: ", end="")
+    print(root.qBars)
     print("My move: ", end='')
     optAction = root.getOptimalAction()
     print(optAction)
