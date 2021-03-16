@@ -15,8 +15,8 @@ game = state()
 
 while game.winCheck(game.positions) == -1:
     root = state(positions = game.getPositions(), initProbeBudget=10)
-    for x in range(50):
-        root.OCBATree(1, 100)
+    for x in range(20):
+        root.OCBATree(1, 20)
     root.updateOptimalActions()
     print("My move: ", end='')
     optAction = root.getOptimalAction()
@@ -24,7 +24,8 @@ while game.winCheck(game.positions) == -1:
     game.makeMove(optAction, 1)
     game.showBoard()
     print()
-
+    if game.winCheck(game.positions) != -1:
+        break
 
     selfAction = int(input("Your move: ")) # 0 to 6 representing columns
     game.makeMove(selfAction, 2)
