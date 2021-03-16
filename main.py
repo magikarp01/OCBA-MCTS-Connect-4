@@ -1,33 +1,42 @@
-from Node import node
+from nodePrototype import state
 import random
 import array
+"""
+for x in range(5):
+    checkPositions = [[0]*6, [0]*6, [1, 1, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0], [0]*6, [0]*6, [0]*6]
+    root = state(positions = checkPositions, initProbeBudget=10) # initProbeBudget should be at least 2
+    for x in range(20):
+        root.OCBATree(1, 50) # depth does not work for >1 right now
+    root.updateOptimalActions()
+    print(root.getOptimalAction())
+"""
 
-# startPos = [[0] * 6 for _ in range(7)]
-# startPos[6][2] = 1
-# print(startPos)
-# print()
-def showBoard(positions):
-    for y in range(6):
-        for x in range(7):
-            print(positions[x][5-y], end=' ')
-        print()
+game = state()
 
-root = node()
-positions = [[2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 1, 0, 0, 0, 0], [1, 2, 1, 2, 0, 0], [1, 2, 0, 0, 0, 0], [1, 1, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0]]
-
-
-print(root.winCheck(positions))
-showBoard(positions)
-
-#print(root.winCheck([[2, 1, 2, 1, 1, 0], [2, 2, 2, 0, 0, 0], [1, 1, 2, 0, 0, 0], [2, 2, 0, 0, 0, 0], [2, 1, 1, 0, 0, 0], [1, 2, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0]]))
-#showBoard([[2, 1, 2, 1, 1, 0], [2, 2, 2, 0, 0, 0], [1, 1, 2, 0, 0, 0], [2, 2, 0, 0, 0, 0], [2, 1, 1, 0, 0, 0], [1, 2, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0]])
-
-
-for test in range(0):
-    root = node([[0] * 6 for _ in range(7)], 0, 0)
-    # print(root.getPositions())
-    # print(root.sampleY(root.getPositions(), 1))
-    print(root.rollout(42, 1))
+while game.winCheck(game.positions) == -1:
+    root = state(positions = game.getPositions(), initProbeBudget=10)
+    for x in range(50):
+        root.OCBATree(1, 100)
+    root.updateOptimalActions()
+    print("My move: ", end='')
+    optAction = root.getOptimalAction()
+    print(optAction)
+    game.makeMove(optAction, 1)
+    game.showBoard()
     print()
-    # print(random.randint(0, 7))
-    # print(root.rollout(42, 1))
+
+
+    selfAction = int(input("Your move: ")) # 0 to 6 representing columns
+    game.makeMove(selfAction, 2)
+    print()
+    game.showBoard()
+    print()
+
+if game.winCheck(game.positions) == 1:
+    print("I win")
+
+elif game.winCheck(game.positions) == 0:
+    print("You win")
+
+else:
+    print("Draw")
