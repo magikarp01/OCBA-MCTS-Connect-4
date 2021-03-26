@@ -13,7 +13,24 @@ class state:
         self.children = []
         self.totBudget = budget
         self.initProbeBudget = initProbeBudget
+
+        self.numVisits = 0
+
+        self.actions = []
+        self.budgetAlloc = []  # budget allocation for each child node
+        self.qHats = [[], [], [], [], [], [], []]  # arrays of qhats for each action
+        self.qBars = [0] * 7  # qbars of each action
+        self.variances = [0] * 7
+        self.kroneckers = [0] * 7
+        self.numSamples = [0] * 7
+
+        self.vHat = 0
+        self.optimalActions = []
+
+        self.children = []
+
         self.setActions()
+
 
     # overall data
     positions = []
@@ -87,13 +104,17 @@ class state:
 
     def updateBudget(self):
 
-        startAction = 0
+        startAction = -1
         for action in self.actions:
             if action not in self.optimalActions:
-                startAction = action
-                break
-        denom = self.variances[startAction] / (self.kroneckers[startAction] ** 2)
-
+                if self.variances[action] != 0 and self.kroneckers[action] != 0:
+                    startAction = action
+                    break
+        varFlag = True # if any of the nonoptimal moves have nonzero variance
+        try:
+            denom = self.variances[startAction] / (self.kroneckers[startAction] ** 2)
+        except: # happens when all of the nonoptimal moves have zero variance
+            varFlag = False
         ratios = [0] * 7
 
         for action in self.actions:
@@ -104,7 +125,20 @@ class state:
                 continue
             else:  # assumes kroneckers and variances != 0
                 ratio = self.variances[action] / (self.kroneckers[action] ** 2)
-                ratio /= denom
+                try:
+                    ratio /= denom
+                except: # happens when all of the nonoptimal moves have zero variance, only one possible move
+                    budget = [0] * 7
+                    totBudget = 0
+                    for action in self.actions:
+                        totBudget += self.numSamples[action]
+                    averageAlloc = (totBudget+1)/len(self.optimalActions)
+                    for x in self.optimalActions:
+                        budget[x] = averageAlloc
+
+                    self.budgetAlloc = budget
+                    return
+
                 ratios[action] = ratio
 
 
@@ -126,9 +160,15 @@ class state:
             total += ratios[action]
             totBudget += self.numSamples[action]
 
-        scale = (totBudget + 1) / total
-        for action in range(7):
-            budget[action] = scale * ratios[action]
+        try:
+            scale = (totBudget + 1) / total
+            for action in range(7):
+                budget[action] = scale * ratios[action]
+        except:
+            uniform = (totBudget+1)/7
+            for action in range(7):
+                budget[action] = uniform
+
         self.budgetAlloc = budget
 
 
@@ -208,48 +248,101 @@ class state:
         for x in range(7):
             if positions[x][5] == 0:
                 possibleMoves.append(x)
+
         randX = possibleMoves[random.randint(0, len(possibleMoves) - 1)]
 
         positions[randX][self.actionHeight(positions, randX)] = whichPlayer
 
         return positions
 
+
+    def checkIfWinMove(self, positions, whichPlayer): #prob needs to be more efficient
+        positions = deepcopy(positions)
+        for action in range(7):
+            if positions[action][5] == 0:
+                actionHeight = self.actionHeight(positions, action)
+                positions[action][actionHeight] = whichPlayer
+
+                if whichPlayer == 1:
+                    if self.winCheck(positions) == 1:
+                        return action
+                else:
+                    if self.winCheck(positions) == 0:
+                        return action
+                positions[action][actionHeight] = 0
+
+        return -1
+
+
     def rollout(self, numMoves, whichPlayer): #whichPlayer is 1 for self
-        # get sample Q-hat by randomly simulating moves up to budget from parent
-        # numMoves is total number of moves to make, max is 7*6 = 42
-        # for now, every move is made uniformly random and we go to the end
+        # get sample vHat
         positions = self.getPositions()
         winVal = self.winCheck(positions)
         if winVal != -1:
             return winVal
 
-        numMovesMade = 0
         for move in range(numMoves):
-            positions = self.sampleNext(positions, whichPlayer)
+            prevPositions = deepcopy(positions)
+
+            # want to make winning move and don't want to make losing move
+            check1 = self.checkIfWinMove(prevPositions, 1)
+            check2 = self.checkIfWinMove(prevPositions, 2)
+            nextMoveFlag = True
+
+            if whichPlayer == 1:
+                if check1 != -1:
+                    return 1
+                elif check2 != -1:
+                    nextMoveFlag = False
+                    positions[check2][self.actionHeight(positions, check2)] = 1
+
+            elif whichPlayer == 2:
+                if check2 != -1:
+                    return 0
+                elif check1 != -1:
+                    nextMoveFlag = False
+                    positions[check1][self.actionHeight(positions, check1)] = 2
+
+            if nextMoveFlag:
+                positions = self.sampleNext(positions, whichPlayer)
             #print(positions)
-            numMovesMade += 1
+
             winVal2 = self.winCheck(positions)
             if winVal2 != -1:
-                return winVal2/numMovesMade
+                return winVal2
 
             if whichPlayer == 2:
                 whichPlayer = 1
             elif whichPlayer == 1:
                 whichPlayer = 2
 
-        return self.winHeuristic(positions)/numMovesMade
+        return self.winHeuristic(positions)
 
 
     def sampleY(self, action):
         positions = self.getPositions()
-        positions[action][self.actionHeight(self.positions, action)] = 1
+        positions[action][self.actionHeight(positions, action)] = 1
+        check2 = self.checkIfWinMove(positions, 2) # if can make a winning move
+        if check2 != -1:
+            positions[check2][self.actionHeight(positions, check2)] = 2
+            return positions
+
+        check1 = self.checkIfWinMove(positions, 1)
+        if check1 != -1: # if can block a losing move
+            positions[check1][self.actionHeight(positions, check1)] = 2
+            return positions
+
         positions = self.sampleNext(positions, 2)
         return positions
 
-    def sampleReward(self, numRewardSamples): # how to make sure that longer games are not weighted higher?
-        # currently, longer games have more stages and therefore will have higher total reward values
-        # idea: divide the rollout return value by the number of moves until the game finished
+    def sampleReward(self):
+        winCheck = self.winCheck(self.positions)
+        if winCheck != -1:
+            return winCheck
+        else:
+            return 0
 
+    def sampleVHat(self, numRewardSamples):
         average = 0
         for x in range(numRewardSamples):
             average += self.rollout(42, 1)
@@ -299,7 +392,7 @@ class state:
         # fix budget
         childState = state(positions=positions, budget=0, initProbeBudget = self.initProbeBudget)
         childState.OCBATree(depth - 1, numRewardSamples)
-        qHat = self.sampleReward(numRewardSamples) + childState.getVHat()
+        qHat = self.sampleReward() + childState.getVHat()
         self.qHats[action].append(qHat)
         self.numVisits = self.numVisits + 1
         self.numSamples[action] = self.numSamples[action]+1
@@ -310,18 +403,15 @@ class state:
 
     def OCBATree(self, depth, numRewardSamples): #returns vHat
         #depth should probably be <3, 1 is probably good
-        if self.checkHorizon(self.positions):
-            self.numVisits = self.numVisits + 1 # probably wrong lol
-            self.vHat = 0 # should I check if it's in a win/loss position?
-            return
 
         winVal = self.winCheck(self.positions)
-        if winVal != -1: # might overlap with checkHorizon
+        if winVal != -1:
             self.vHat = winVal
             return
 
         if depth == 0:
-            self.vHat = self.sampleReward(numRewardSamples)
+            #self.vHat = self.sampleRewardVHat(numRewardSamples) # make a sampleVHat function
+            self.vHat = self.sampleVHat(numRewardSamples)
             return
 
         flag = True
