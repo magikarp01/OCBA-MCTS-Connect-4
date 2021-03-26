@@ -39,10 +39,10 @@ for test in range(100):
     print(rootState.sampleY(2))
 """
 
-initProbeBudget=4
+initProbeBudget=5
 depth=1
 numRewardSamples=10
-budget=30
+budget=20
 
 #game = state([[1, 1, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0]*6, [0]*6])
 game = state()
@@ -70,14 +70,14 @@ while game.winCheck(game.positions) == -1:
 
     print("My move: ", end='')
     optAction = root.getOptimalAction()
-    print(optAction)
+    print(optAction + 1)
     game.makeMove(optAction, 1)
     game.showBoard()
     print()
     if game.winCheck(game.positions) != -1:
         break
-
-    selfAction = int(input("Your move: ")) # 0 to 6 representing columns
+    print("choose 1 through 7")
+    selfAction = int(input("Your move: "))-1 # 0 to 6 representing columns
     game.makeMove(selfAction, 2)
     print()
     game.showBoard()

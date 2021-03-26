@@ -64,6 +64,7 @@ class state:
         self.actions = actions
 
     def getOptimalAction(self):
+        #print(self.optimalActions)
         return self.optimalActions[0]
 
     # run this at the very end
@@ -322,6 +323,7 @@ class state:
     def sampleY(self, action):
         positions = self.getPositions()
         positions[action][self.actionHeight(positions, action)] = 1
+
         check2 = self.checkIfWinMove(positions, 2) # if can make a winning move
         if check2 != -1:
             positions[check2][self.actionHeight(positions, check2)] = 2
@@ -389,7 +391,6 @@ class state:
 
     def update(self, action, depth, numRewardSamples):
         positions = self.sampleY(action)
-        # fix budget
         childState = state(positions=positions, budget=0, initProbeBudget = self.initProbeBudget)
         childState.OCBATree(depth - 1, numRewardSamples)
         qHat = self.sampleReward() + childState.getVHat()
@@ -401,16 +402,24 @@ class state:
         return
 
 
-    def OCBATree(self, depth, numRewardSamples): #returns vHat
-        #depth should probably be <3, 1 is probably good
+    def OCBATree(self, depth, numRewardSamples):  #returns vHat
+        # depth should probably be <3, 1 is probably good
 
         winVal = self.winCheck(self.positions)
         if winVal != -1:
             self.vHat = winVal
             return
 
+        # check1 = self.checkIfWinMove(self.getPositions(), 1)  # if there is a winning move
+        # if check1 != -1:
+        #     self.vHat = 1
+        #     #self.optimalActions = [check1]
+        #     self.qBars[check1] = 1
+        #     self.updateOptimalActions()
+        #     return
+
         if depth == 0:
-            #self.vHat = self.sampleRewardVHat(numRewardSamples) # make a sampleVHat function
+            # self.vHat = self.sampleRewardVHat(numRewardSamples) # make a sampleVHat function
             self.vHat = self.sampleVHat(numRewardSamples)
             return
 
