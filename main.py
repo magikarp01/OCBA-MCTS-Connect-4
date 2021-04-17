@@ -1,4 +1,4 @@
-from nodePrototype import state
+from OCBA import OCBAState
 import random
 import array
 """
@@ -24,7 +24,7 @@ for x in range(5):
 """
 testState = state()
 #testPositions = [[0]*6, [0]*6, [0]*6, [2, 2, 1, 1, 2, 0], [1, 2, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0], [1, 2, 0, 0, 0, 0]]
-testPositions = [[0]*6, [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 2, 1, 0, 0, 0], [1, 1, 1, 2, 0, 0], [1, 0, 0, 0, 0, 0], [0]*6]
+testPositions = [[2, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0], [2, 1, 1, 0, 0, 0], [1, 2, 1, 0, 0, 0], [1, 2, 1, 2, 0, 0], [2, 2, 2, 1, 0, 0], [0]*6]
 #winningMovePositions = [[2, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [1, 1, 0, 0, 0, 0], [0]*6, [0]*6]
 winningMovePositions = testPositions
 #winningMovePositions = [[0] * 6 for _ in range(7)]
@@ -36,19 +36,19 @@ for test in range(100):
     # print(rootState.sampleNext(winningMovePositions, 2))
     # print(rootState.rollout(42, 1))
     #print(rootState.sampleVHat(100))
-    print(rootState.sampleY(6))
+    print(rootState.sampleY(2))
 """
 
 initProbeBudget=5
 depth=1
-numRewardSamples=10
-budget=15
+numRewardSamples=20
+budget=20
 
 #game = state([[1, 1, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0]*6, [0]*6])
-game = state()
+game = OCBAState()
 
 while game.winCheck(game.positions) == -1:
-    root = state(positions = game.getPositions(), initProbeBudget=initProbeBudget)
+    root = OCBAState(positions = game.getPositions(), initProbeBudget=initProbeBudget)
 
     # print("before OCBA")
     # print(root.qBars)
@@ -61,23 +61,23 @@ while game.winCheck(game.positions) == -1:
         root.OCBATree(depth, numRewardSamples)
     root.updateOptimalActions()
 
-    print("after OCBA")
+    # print("after OCBA")
     print(root.qBars)
-    print(root.qHats)
-    print(root.budgetAlloc)
-    print(root.numSamples)
-    print(root.positions)
+    # print(root.qHats)
+    # print(root.budgetAlloc)
+    # print(root.numSamples)
+    # print(root.positions)
 
     print("My move: ", end='')
     optAction = root.getOptimalAction()
-    print(optAction)
+    print(optAction + 1)
     game.makeMove(optAction, 1)
     game.showBoard()
     print()
     if game.winCheck(game.positions) != -1:
         break
-
-    selfAction = int(input("Your move: ")) # 0 to 6 representing columns
+    print("choose 1 through 7")
+    selfAction = int(input("Your move: "))-1 # 0 to 6 representing columns
     game.makeMove(selfAction, 2)
     print()
     game.showBoard()
@@ -91,5 +91,3 @@ elif game.winCheck(game.positions) == 0:
 
 else:
     print("Draw")
-
-#"""
