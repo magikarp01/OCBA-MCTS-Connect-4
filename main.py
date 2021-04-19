@@ -1,4 +1,5 @@
-from nodePrototype import state
+from OCBA import OCBAState
+from UCT import UCBState
 import random
 import array
 """
@@ -6,7 +7,7 @@ for x in range(5):
     checkPositions = [[0]*6, [0]*6, [1, 1, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0], [0]*6, [0]*6, [0]*6]
     root = state(positions = checkPositions, initProbeBudget=10) # initProbeBudget should be at least 2
     for x in range(20):
-        root.OCBATree(1, 50) # depth does not work for >1 right now
+        root.UCBTree(1, 50) # depth does not work for >1 right now
     root.updateOptimalActions()
     print(root.getOptimalAction())
 """
@@ -39,55 +40,112 @@ for test in range(100):
     print(rootState.sampleY(2))
 """
 
-initProbeBudget=4
-depth=1
-numRewardSamples=10
-budget=30
+def OCBAGame():
+    initProbeBudget = 5
+    depth = 1
+    numRewardSamples = 10
+    budget = 50
 
-#game = state([[1, 1, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0]*6, [0]*6])
-game = state()
+    # game = state([[1, 1, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0]*6, [0]*6])
+    game = OCBAState()
 
-while game.winCheck(game.positions) == -1:
-    root = state(positions = game.getPositions(), initProbeBudget=initProbeBudget)
+    while game.winCheck(game.positions) == -1:
+        root = OCBAState(positions=game.getPositions(), initProbeBudget=initProbeBudget, budget=budget)
 
-    # print("before OCBA")
-    # print(root.qBars)
-    # print(root.qHats)
-    # print(root.budgetAlloc)
-    # print(root.numSamples)
-    # print()
+        # print("before OCBA")
+        # print(root.qBars)
+        # print(root.qHats)
+        # print(root.budgetAlloc)
+        # print(root.numSamples)
+        # print()
+        for sample in range(budget):
+            root.OCBATree(depth, numRewardSamples)
+        root.updateOptimalActions()
 
-    for x in range(budget):
-        root.OCBATree(depth, numRewardSamples)
-    root.updateOptimalActions()
+        # print("after OCBA")
+        print(root.qBars)
+        print(root.qHats)
+        print(root.budgetAlloc)
+        print(root.numSamples)
+        # print(root.positions)
 
-    # print("after OCBA")
-    print(root.qBars)
-    # print(root.qHats)
-    # print(root.budgetAlloc)
-    # print(root.numSamples)
-    # print(root.positions)
+        print("My move: ", end='')
+        optAction = root.getOptimalAction()
+        print(optAction + 1)
+        game.makeMove(optAction, 1)
+        game.showBoard()
+        print()
+        if game.winCheck(game.positions) != -1:
+            break
+        print("choose 1 through 7")
+        selfAction = int(input("Your move: ")) - 1  # 0 to 6 representing columns
+        game.makeMove(selfAction, 2)
+        print()
+        game.showBoard()
+        print()
 
-    print("My move: ", end='')
-    optAction = root.getOptimalAction()
-    print(optAction)
-    game.makeMove(optAction, 1)
-    game.showBoard()
-    print()
-    if game.winCheck(game.positions) != -1:
-        break
+    if game.winCheck(game.positions) == 1:
+        print("I win")
 
-    selfAction = int(input("Your move: ")) # 0 to 6 representing columns
-    game.makeMove(selfAction, 2)
-    print()
-    game.showBoard()
-    print()
+    elif game.winCheck(game.positions) == 0:
+        print("You win")
 
-if game.winCheck(game.positions) == 1:
-    print("I win")
+    else:
+        print("Draw")
 
-elif game.winCheck(game.positions) == 0:
-    print("You win")
+def UCTGame():
+    initProbeBudget=5
+    depth=1
+    numRewardSamples=20
+    budget=50
+    exploreParam = .1
 
-else:
-    print("Draw")
+    #game = state([[1, 1, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0]*6, [0]*6])
+    game = UCBState()
+
+    while game.winCheck(game.positions) == -1:
+        root = UCBState(positions = game.getPositions(), budget = budget, initProbeBudget=initProbeBudget, exploreParam=exploreParam)
+
+        for x in range(budget):
+            root.UCBTree(depth, numRewardSamples)
+        root.updateOptimalActions()
+
+        print(root.qBars)
+        print(root.numSamples)
+        print(root.numVisits)
+        print(root.UCBVals)
+
+        print("My move: ", end='')
+        optAction = root.getOptimalAction()
+        print(optAction + 1)
+        game.makeMove(optAction, 1)
+        game.showBoard()
+        print()
+        if game.winCheck(game.positions) != -1:
+            break
+
+        while True:
+            print("choose 1 through 7")
+            try:
+                selfAction = int(input("Your move: ")) - 1  # 0 to 6 representing columns
+                if selfAction >= 0 and selfAction <= 6:
+                    break
+            except:
+                pass
+
+        game.makeMove(selfAction, 2)
+        print()
+        game.showBoard()
+        print()
+
+    if game.winCheck(game.positions) == 1:
+        print("I win")
+
+    elif game.winCheck(game.positions) == 0:
+        print("You win")
+
+    else:
+        print("Draw")
+
+#OCBAGame()
+UCTGame()
