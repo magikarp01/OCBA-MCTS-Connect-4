@@ -8,13 +8,10 @@ from copy import deepcopy
 
 # i may need to have getters and setters
 class UCBState:
-    def __init__(self, positions=[[0] * 6 for _ in range(7)], budget=0, initProbeBudget=0, exploreParam=.1):
+    def __init__(self, positions=[[0] * 6 for _ in range(7)], exploreParam=2):
         self.positions = positions
         self.children = []
-        self.totBudget = budget
-        self.initProbeBudget = initProbeBudget
         self.exploreParam = exploreParam
-        self.budget = budget
 
         self.numVisits = 0
 
@@ -36,8 +33,6 @@ class UCBState:
     exploreParam = math.sqrt(2)
     positions = []
     numVisits = 0
-    totBudget = 0
-    initProbeBudget = 0  # n_0, initial number of explorations
 
     # contains data for each action
     actions = []
@@ -60,14 +55,18 @@ class UCBState:
         for x in range(7):
             if self.positions[x][5] == 0:
                 actions.append(x)
+                self.UCBVals[x] = -1 # if move is feasible
         self.actions = actions
 
     def getOptimalAction(self):
-        #print(self.optimalActions)
+        if self.optimalActions[0] == 1:
+            check = self.checkIfWinMove(self.positions, 1)
+            if check != -1:
+                return check
         return self.optimalActions[0]
 
-    # run this at the very end
     def updateOptimalActions(self):
+        self.setActions()
         maxQBar = self.qBars[0]
         optimalActions = [0]
         for action in self.actions:
@@ -81,11 +80,10 @@ class UCBState:
             optimalActions = self.actions # all of the moves are the same, loss
         self.optimalActions = optimalActions
 
-
-    def updateUCBs(self): #action has been performed
+    def updateUCBs(self, exploreParam): #action has been performed
         for action in self.actions:
             if self.numSamples[action] != 0:
-                self.UCBVals[action] = self.qBars[action] + self.exploreParam*math.sqrt(self.numVisits/self.numSamples[action])
+                self.UCBVals[action] = self.qBars[action] + math.sqrt(exploreParam*math.log(self.numVisits, 10)/self.numSamples[action])
             else:
                 self.UCBVals[action] = -1 # flag for no visit
 
@@ -309,35 +307,46 @@ class UCBState:
 
         return bestAction
 
-    def update(self, action, depth, numRewardSamples, budget):
+    def update(self, action, depth, depthBudget, exploreParam):
         positions = self.sampleY(action)
-        childState = UCBState(positions=positions, budget=budget//2, initProbeBudget = self.initProbeBudget)
+        childState = UCBState(positions=positions, exploreParam=self.exploreParam)
+
         if depth > 1:
-            for sample in range(budget):
-                childState.UCBTree(depth - 1, numRewardSamples)
+            for sample in range(depthBudget[depth-1]):
+                childState.UCBTree(depth - 1, depthBudget, exploreParam)
         else:
-            childState.UCBTree(0, numRewardSamples)
+            childState.UCBTree(0, depthBudget, exploreParam)
         qHat = self.sampleReward() + childState.getVHat()
         self.qHats[action].append(qHat)
         self.numVisits = self.numVisits + 1
         self.numSamples[action] = self.numSamples[action]+1
         self.updateQBar(action)
-        self.updateUCBs() # for more efficiency, maybe only update the single action
+        self.updateUCBs(exploreParam) # for more efficiency, maybe only update the single action
+        self.updateVHat()
         return
 
-    def UCBTree(self, depth, numRewardSamples):
+    def UCBTree(self, depth, depthBudget, exploreParam):
         winVal = self.winCheck(self.positions)
         if winVal != -1:
             self.vHat = winVal
             return
+
+        # winCheck = self.checkIfWinMove(self.positions, 1)
+        # if winCheck != -1:
+        #     self.vHat = 1
+        #     return
+
+        numRewardSamples = depthBudget[0]
         if depth == 0:
             # self.vHat = self.sampleRewardVHat(numRewardSamples) # make a sampleVHat function
             self.vHat = self.sampleVHat(numRewardSamples)
             return
 
-        self.updateUCBs()
+        self.updateUCBs(exploreParam)
         starvingAction = self.getStarvingAction()
-        self.update(starvingAction, depth, numRewardSamples, self.budget)
+        self.update(starvingAction, depth, depthBudget, exploreParam)
+        self.updateOptimalActions()
+        self.updateUCBs(exploreParam)
 
 
     def showBoard(self):

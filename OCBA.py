@@ -8,12 +8,9 @@ from copy import deepcopy
 
 # i may need to have getters and setters
 class OCBAState:
-    def __init__(self, positions=[[0] * 6 for _ in range(7)], budget=0, initProbeBudget=0):
+    def __init__(self, positions=[[0] * 6 for _ in range(7)]):
         self.positions = positions
         self.children = []
-        self.totBudget = budget
-        self.initProbeBudget = initProbeBudget
-        self.budget=budget
 
         self.numVisits = 0
 
@@ -36,7 +33,6 @@ class OCBAState:
     # overall data
     positions = []
     numVisits = 0
-    totBudget = 0
     initProbeBudget = 0  # n_0, initial number of explorations
 
     # contains data for each action
@@ -397,15 +393,15 @@ class OCBAState:
         return bestAction
 
 
-    def update(self, action, depth, numRewardSamples, budget):
+    def update(self, action, depth, depthBudget, initProbeBudget): # depth budget gives budget at each depth level
         positions = self.sampleY(action)
         # divide actions in two for now
-        childState = OCBAState(positions=positions, budget=budget//2, initProbeBudget = self.initProbeBudget)
+        childState = OCBAState(positions=positions)
         if depth > 1:
-            for sample in range(budget):
-                childState.OCBATree(depth - 1, numRewardSamples)
+            for sample in range(depthBudget[depth-1]):
+                childState.OCBATree(depth - 1, depthBudget, initProbeBudget)
         else:
-            childState.OCBATree(0, numRewardSamples)
+            childState.OCBATree(0, depthBudget, initProbeBudget) # this is handled by the numRewardSamples
         qHat = self.sampleReward() + childState.getVHat()
         self.qHats[action].append(qHat)
         self.numVisits = self.numVisits + 1
@@ -415,30 +411,27 @@ class OCBAState:
         return
 
 
-    def OCBATree(self, depth, numRewardSamples):  #returns vHat
-        # depth should probably be <3, 1 is probably good
+    def OCBATree(self, depth, depthBudget, initProbeBudget):  # returns vHat
 
         winVal = self.winCheck(self.positions)
         if winVal != -1:
             self.vHat = winVal
             return
 
-        # check1 = self.checkIfWinMove(self.getPositions(), 1)  # if there is a winning move
-        # if check1 != -1:
+        # winCheck = self.checkIfWinMove(self.positions, 1)
+        # if winCheck != -1:
         #     self.vHat = 1
-        #     #self.optimalActions = [check1]
-        #     self.qBars[check1] = 1
-        #     self.updateOptimalActions()
         #     return
 
+        numRewardSamples = depthBudget[0]
         if depth == 0:
             # self.vHat = self.sampleRewardVHat(numRewardSamples) # make a sampleVHat function
             self.vHat = self.sampleVHat(numRewardSamples)
             return
 
         for action in self.actions: #for now, go through all of them
-            if self.numSamples[action] < self.initProbeBudget:
-                self.update(action, depth, numRewardSamples, self.budget)
+            if self.numSamples[action] < initProbeBudget:
+                self.update(action, depth, depthBudget, initProbeBudget)
                 self.updateVHat()
                 return
 
@@ -447,7 +440,7 @@ class OCBAState:
             self.updateKronecker(action)
         self.updateBudget()
         starvingAction = self.getStarvingAction()
-        self.update(starvingAction, depth, numRewardSamples, self.budget)
+        self.update(starvingAction, depth, depthBudget, initProbeBudget)
         self.updateVHat()
 
 
