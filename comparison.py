@@ -1,7 +1,10 @@
 from OCBA import OCBAState
 from UCT import UCBState
 import time
-import time
+import matplotlib.pyplot as plt
+import numpy as np
+from tqdm import tqdm
+
 
 def OCBAGame(depth, depthBudget, initProbeBudget):
     game = OCBAState()
@@ -163,24 +166,6 @@ def playAgainst(depth, depthBudget, initProbeBudget, exploreParam, whoFirst): # 
 
 # playAgainst(1, [10, 50], 5, 2, 1)
 
-def compareSampling(depth, depthBudget, initProbeBudget, exploreParam, positions):
-    UCB = UCBState(positions)
-    OCBA = OCBAState(positions)
-    for x in range(depthBudget[depth]):
-        UCB.UCBTree(depth, depthBudget, exploreParam)
-        OCBA.OCBATree(depth, depthBudget, initProbeBudget)
-
-    print("UCB: ")
-    print(UCB.numSamples)
-    print(UCB.qBars)
-    print(UCB.getOptimalAction())
-
-    print("OCBA: ")
-    print(OCBA.numSamples)
-    print(OCBA.qBars)
-    print(OCBA.getOptimalAction())
-
-
 
 # for x in range(1):
 #     print("UCB First:")
@@ -191,7 +176,7 @@ def compareSampling(depth, depthBudget, initProbeBudget, exploreParam, positions
     # print()
 
 
-def compareTime(depth, depthBudget, initProbeBudget, exploreParam, positions):
+def compare(depth, depthBudget, initProbeBudget, exploreParam, positions):
     UCB = UCBState(positions)
     OCBA = OCBAState(positions)
 
@@ -206,10 +191,84 @@ def compareTime(depth, depthBudget, initProbeBudget, exploreParam, positions):
         OCBA.OCBATree(depth, depthBudget, initProbeBudget)
     OCBAEnd = time.time()
     OCBATime = OCBAEnd - OCBAStart
+
+    print("UCB: ")
+    print(UCB.numSamples)
+    print(UCB.qBars)
+    print(UCB.getOptimalAction())
     print("UCB Time: " + str(UCBTime))
+
+
+    print("OCBA: ")
+    print(OCBA.numSamples)
+    print(OCBA.qBars)
+    print(OCBA.getOptimalAction())
     print("OCBA Time: " + str(OCBATime))
 
 
-testPositions = [[0]*6, [1, 1, 2, 2, 1, 0], [2, 1, 0, 0, 0, 0], [0]*6, [2, 0, 0, 0, 0, 0], [0]*6, [0]*6]
-compareSampling(2, [5, 20, 40], 3, 2, testPositions)
-compareTime(2, [5, 20, 40], 3, 2, testPositions)
+
+def comparePlotting(depth, depthBudget, initProbeBudget, exploreParam, positions):
+    UCB = UCBState(positions)
+    OCBA = OCBAState(positions)
+
+    UCBActionQBars = [[], [], [], [], [], [], []]
+    OCBAActionQBars = [[], [], [], [], [], [], []]
+
+    UCBActionSamples = [[], [], [], [], [], [], []]
+    OCBAActionSamples = [[], [], [], [], [], [], []]
+
+    for x in tqdm(range(depthBudget[depth])):
+        UCB.UCBTree(depth, depthBudget, exploreParam)
+        OCBA.OCBATree(depth, depthBudget, initProbeBudget)
+        # graph qBar against each action
+        for action in range(7):
+            UCBActionQBars[action].append(UCB.qBars[action])
+            OCBAActionQBars[action].append(OCBA.qBars[action])
+            UCBActionSamples[action].append(UCB.numSamples[action])
+            OCBAActionSamples[action].append(OCBA.numSamples[action])
+
+    iterations = range(depthBudget[depth])
+
+    plt.subplots_adjust(hspace=.6, wspace=.3)
+    plt.subplot(2, 2, 1)
+    plt.title("UCB QBars")
+    for action in range(7):
+        plt.plot(iterations, UCBActionQBars[action], label = str(action))
+    plt.legend()
+    plt.xlabel("Iterations")
+    plt.ylabel("Q-Bar")
+
+    plt.subplot(2, 2, 2)
+    plt.title("OCBA QBars")
+    for action in range(7):
+        plt.plot(iterations, OCBAActionQBars[action], label=str(action))
+    plt.legend()
+    plt.xlabel("Iterations")
+    plt.ylabel("Q-Bar")
+
+
+    plt.subplot(2, 2, 3)
+    plt.title("UCB Samples")
+    for action in range(7):
+        plt.plot(iterations, UCBActionSamples[action], label=str(action))
+    plt.legend()
+    plt.xlabel("Iterations")
+    plt.ylabel("Samples")
+
+    plt.subplot(2, 2, 4)
+    plt.title("OCBA Samples")
+    for action in range(7):
+        plt.plot(iterations, OCBAActionSamples[action], label=str(action))
+    plt.legend()
+    plt.xlabel("Iterations")
+    plt.ylabel("Samples")
+
+    plt.show()
+
+
+
+
+testPositions1 = [[0]*6, [1, 1, 2, 2, 1, 0], [2, 1, 0, 0, 0, 0], [0]*6, [2, 1, 0, 0, 0, 0], [0]*6, [0]*6]
+testPositions2 = [[0]*6, [0]*6, [0]*6, [0]*6, [0]*6, [0]*6, [0]*6]
+#compareSampling(2, [5, 20, 40], 3, 2, testPositions)
+comparePlotting(1, [5, 3000], 3, 2, testPositions2)
