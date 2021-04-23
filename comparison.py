@@ -207,15 +207,17 @@ def compare(depth, depthBudget, initProbeBudget, exploreParam, positions):
 
 
 
-def comparePlotting(depth, depthBudget, initProbeBudget, exploreParam, positions):
+def comparePlot(depth, depthBudget, initProbeBudget, exploreParam, positions):
     UCB = UCBState(positions)
     OCBA = OCBAState(positions)
 
     UCBActionQBars = [[], [], [], [], [], [], []]
-    OCBAActionQBars = [[], [], [], [], [], [], []]
-
     UCBActionSamples = [[], [], [], [], [], [], []]
+    UCBActionValues = [[], [], [], [], [], [], []]
+
+    OCBAActionQBars = [[], [], [], [], [], [], []]
     OCBAActionSamples = [[], [], [], [], [], [], []]
+    OCBAActionVariances = [[], [], [], [], [], [], []]
 
     for x in tqdm(range(depthBudget[depth])):
         UCB.UCBTree(depth, depthBudget, exploreParam)
@@ -226,11 +228,13 @@ def comparePlotting(depth, depthBudget, initProbeBudget, exploreParam, positions
             OCBAActionQBars[action].append(OCBA.qBars[action])
             UCBActionSamples[action].append(UCB.numSamples[action])
             OCBAActionSamples[action].append(OCBA.numSamples[action])
+            UCBActionValues[action].append(UCB.UCBVals[action])
+            OCBAActionVariances[action].append(OCBA.variances[action])
 
     iterations = range(depthBudget[depth])
 
     plt.subplots_adjust(hspace=.6, wspace=.3)
-    plt.subplot(2, 2, 1)
+    plt.subplot(3, 2, 1)
     plt.title("UCB QBars")
     for action in range(7):
         plt.plot(iterations, UCBActionQBars[action], label = str(action))
@@ -238,7 +242,7 @@ def comparePlotting(depth, depthBudget, initProbeBudget, exploreParam, positions
     plt.xlabel("Iterations")
     plt.ylabel("Q-Bar")
 
-    plt.subplot(2, 2, 2)
+    plt.subplot(3, 2, 2)
     plt.title("OCBA QBars")
     for action in range(7):
         plt.plot(iterations, OCBAActionQBars[action], label=str(action))
@@ -247,7 +251,7 @@ def comparePlotting(depth, depthBudget, initProbeBudget, exploreParam, positions
     plt.ylabel("Q-Bar")
 
 
-    plt.subplot(2, 2, 3)
+    plt.subplot(3, 2, 3)
     plt.title("UCB Samples")
     for action in range(7):
         plt.plot(iterations, UCBActionSamples[action], label=str(action))
@@ -255,7 +259,7 @@ def comparePlotting(depth, depthBudget, initProbeBudget, exploreParam, positions
     plt.xlabel("Iterations")
     plt.ylabel("Samples")
 
-    plt.subplot(2, 2, 4)
+    plt.subplot(3, 2, 4)
     plt.title("OCBA Samples")
     for action in range(7):
         plt.plot(iterations, OCBAActionSamples[action], label=str(action))
@@ -263,12 +267,52 @@ def comparePlotting(depth, depthBudget, initProbeBudget, exploreParam, positions
     plt.xlabel("Iterations")
     plt.ylabel("Samples")
 
+
+    plt.subplot(3, 2, 5)
+    plt.title("UCB Values")
+    for action in range(7):
+        plt.plot(iterations, UCBActionValues[action], label=str(action))
+    plt.legend()
+    plt.xlabel("Iterations")
+    plt.ylabel("UCB Values")
+
+    plt.subplot(3, 2, 6)
+    plt.title("OCBA Variances")
+    for action in range(7):
+        plt.plot(iterations, OCBAActionVariances[action], label=str(action))
+    plt.legend()
+    plt.xlabel("Iterations")
+    plt.ylabel("Variances")
+
     plt.show()
 
+def compareDepth(maxDepth, iterations, initProbeBudget, exploreParam, positions):
+    for depth in range(1, maxDepth+1):
+        depthBudget = [iterations]*(depth)
+        print("Depth: " + str(depth))
+        UCB = UCBState(positions)
+        OCBA = OCBAState(positions)
+        for x in tqdm(range(iterations)):
+            UCB.UCBTree(depth, depthBudget, exploreParam)
+            OCBA.OCBATree(depth, depthBudget, initProbeBudget)
+
+        print("UCB: ")
+        print(UCB.getOptimalAction())
+        print(UCB.numSamples)
+        print(UCB.qBars)
+
+
+        print("OCBA: ")
+        print(OCBA.getOptimalAction())
+        print(OCBA.numSamples)
+        print(OCBA.qBars)
+
+        print()
 
 
 
 testPositions1 = [[0]*6, [1, 1, 2, 2, 1, 0], [2, 1, 0, 0, 0, 0], [0]*6, [2, 1, 0, 0, 0, 0], [0]*6, [0]*6]
 testPositions2 = [[0]*6, [0]*6, [0]*6, [0]*6, [0]*6, [0]*6, [0]*6]
-#compareSampling(2, [5, 20, 40], 3, 2, testPositions)
-comparePlotting(1, [5, 3000], 3, 2, testPositions2)
+# compareSampling(2, [5, 20, 40], 3, 2, testPositions)
+comparePlot(1, [10, 300], 5, 2, testPositions2)
+# compareDepth(4, 20, 2, 2, testPositions2)

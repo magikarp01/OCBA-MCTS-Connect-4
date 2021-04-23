@@ -442,6 +442,7 @@ class OCBAState:
         starvingAction = self.getStarvingAction()
         self.update(starvingAction, depth, depthBudget, initProbeBudget)
         self.updateVHat()
+        self.updateOptimalActions()
 
 
     def showBoard(self):
