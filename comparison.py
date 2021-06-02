@@ -311,12 +311,4 @@ def compareDepth(maxDepth, iterations, initProbeBudget, exploreParam, positions)
 
 
 
-testPositions1 = [[0]*6, [0]*6, [0]*6, [0]*6, [0]*6, [0]*6, [0]*6]
-testPositions2 = [[0]*6, [0]*6, [1,1,2,1,0,0], [2,2,1,0,0,0], [2,2,0,0,0,0], [1,1,0,0,0,0], [0]*6]
-testPositions3 = [[1,0,0,0,0,0],[1,0,0,0,0,0],[2,0,0,0,0,0],[2,2,1,0,0,0],[2,0,0,0,0,0],[1,0,0,0,0,0],[1,0,0,0,0,0]]
-testPositions4 = [[1,2,2,2,1,0],[2,1,2,1,0,0],[1,0,0,0,0,0],[1,1,2,1,2,0],[0]*6,[2,2,2,1,0,0],[1,0,0,0,0,0]]
-# compareSampling(2, [5, 20, 40], 3, 2, testPositions)
-#comparePlot(1, [10, 500], 10, 2, testPositions4)
-# compareDepth(4, 20, 2, 2, testPositions2)
-# playAgainst(1, [10, 50], 3, 2, 1)
-OCBAGame(1, [5, 50], 2)
+
